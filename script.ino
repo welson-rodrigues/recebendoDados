@@ -1,40 +1,74 @@
-/* ESP32 WiFi Scanning example */
 
 #include "WiFi.h"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <MPU6050.h>
+
+// Configurações do display OLED
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Sensor MPU6050
+MPU6050 mpu;
+
+// Variáveis com dados do sensor
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+float temperatureC;
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Initializing WiFi...");
-  WiFi.mode(WIFI_STA);
-  Serial.println("Setup done!");
+  Wire.begin();
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("Erro ao inicializar o display!");
+    while (1);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Inicialização do MPU6050
+  mpu.initialize();
+  if (!mpu.testConnection()) {
+    Serial.println("Falha na conexão com o MPU6050");
+    while (1);
+  }
+
+  display.setCursor(0, 0);
+  display.println("MPU6050 Iniciado!");
+  display.display();
+  delay(1000);
 }
 
 void loop() {
-  Serial.println("Scanning...");
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  int16_t tempRaw = mpu.getTemperature();
+  temperatureC = (tempRaw / 340.0) + 36.53;
 
-  // WiFi.scanNetworks will return the number of networks found
-  int n = WiFi.scanNetworks();
-  Serial.println("Scan done!");
-  if (n == 0) {
-    Serial.println("No networks found.");
-  } else {
-    Serial.println();
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i) {
-      // Print SSID and RSSI for each network found
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
-      delay(10);
-    }
-  }
-  Serial.println("");
 
-  // Wait a bit before scanning again
-  delay(5000);
+  // Mostra os dados no display
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Acelerometro:");
+  display.print("X: "); display.println(ax);
+  display.print("Y: "); display.println(ay);
+  display.print("Z: "); display.println(az);
+
+
+
+  display.println("Temp:");
+  display.print(temperatureC);
+  display.println(" C");
+
+  display.println("Giroscopio:");
+  display.print("X: "); display.println(gx);
+  display.print("Y: "); display.println(gy);
+  display.print("Z: "); display.println(gz);
+
+  display.display();
+  delay(500);
 }
